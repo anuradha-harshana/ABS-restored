@@ -4,6 +4,7 @@ import "./globals.css";
 import { AuthProvider } from "./context/AuthContext";
 import { createSupabaseServerClient } from "./lib/supabase/server-client";
 import Footer from "./components/Footer/footer";
+import Navbar from "./components/Navbar/Navbar";
 
 const roboto = Open_Sans({
   weight: '400',
@@ -24,6 +25,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     <html lang="en">
       <body className={`${roboto.className} antialiased`}>
         <AuthProvider initialUser={user}>
+           <Navbar />
            <main>
             {children}
             <Footer />

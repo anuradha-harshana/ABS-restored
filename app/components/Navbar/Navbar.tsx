@@ -22,11 +22,11 @@ const Navbar = () => {
       <div className="flex gap-4">
         {user ? (
           <>
-            {/*<div className="flex p-3 items-center justify-center">
-              <a className="px-4 text-xl hover:text-blue-500" href="/dashboard">Customer Registration</a>
-              <a className="px-4 text-xl hover:text-blue-500" href="#">Mechanic Log</a>
-              <a className="px-4 text-xl hover:text-blue-500" href="#">Service Log</a>
-            </div>*/}
+            <div className="flex p-3 items-center justify-center">
+              <a className="px-4 text-lg hover:text-blue-500" href="/dashboard">Registration</a>
+              <a className="px-4 text-lg hover:text-blue-500" href="/Customer">Customer</a>
+              <a className="px-4 text-lg hover:text-blue-500" href="/Company">Company</a>
+            </div>
             <Button variant="destructive" size="lg" className="hover:bg-red-500 hover:text-white cursor-pointer" onClick={handleSignOut}>
               Sign Out
             </Button>

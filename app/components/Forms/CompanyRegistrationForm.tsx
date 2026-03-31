@@ -1,25 +1,25 @@
-// CustomerRegistrationForm.tsx
+// CompanyRegistrationForm.tsx
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useState } from "react"
 import { Field, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { RegistrationData, DatabaseError } from "@/app/types/forms"
+import { CompanyRegistrationData, DatabaseError } from "@/app/types/forms"
 import generatePdf from "../../hooks/generatePdf"
-import insertData from "../../hooks/insertData"
-import useDataValidation from "../../hooks/useDataValidation"
+import insertCompanyData from "../../hooks/insertCompanyData"
+import useCompanyDataValidation from "../../hooks/useCompanyDataValidation"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { AlertCircle, CheckCircle, Loader2 } from "lucide-react"
-import { getSupabaseBrowserClient } from "@/app/lib/supabase/browser-client"
-import CustomerDialog from "../Customer/CustomerDialog"
+import CompanyDialog from "../Company/CompanyDialog"
 
-const CustomerRegistrationForm = () => {
-  const [customer, setCustomer] = useState<RegistrationData>({
-    firstName: "",
-    lastName: "",
-    address: "",
-    phoneNumber: "",
-    nic: "",
+const CompanyRegistrationForm = () => {
+  const [company, setCompany] = useState<CompanyRegistrationData>({
+    companyName: "",
+    companyAddress: "",
+    vatRegistrationNumber: "",
+    brNumber: "",
+    companyContact: "",
+    companyEmail: "",
     vehicleModel: "",
     manuYear: "",
     engineNumber: "",
@@ -30,8 +30,8 @@ const CustomerRegistrationForm = () => {
     registrationFee: "",
     discount: "",
     advancePayment: "",
-    balanceDue: "",
-    paymentMethod: ""
+    paymentMethod: "",
+    balanceDue: ""
   })
 
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -45,7 +45,7 @@ const CustomerRegistrationForm = () => {
     validateAll,
     clearFieldError,
     clearAllErrors
-  } = useDataValidation()
+  } = useCompanyDataValidation()
 
   const handleFormSubmit = async () => {
     setSubmitError(null);
@@ -53,7 +53,7 @@ const CustomerRegistrationForm = () => {
     setIsSubmitting(true);
     
     try {
-      const validationResult = await validateAll(customer);
+      const validationResult = await validateAll(company);
       
       if (!validationResult.isValid) {
         const firstErrorField = Object.keys(validationResult.errors)[0];
@@ -66,30 +66,31 @@ const CustomerRegistrationForm = () => {
         return; 
       }
       
-      const error = await insertData(customer);
+      const error = await insertCompanyData(company);
       
       if (error) {
         console.error("Failed to save to database:", error);
         const dbError = error as DatabaseError;
         if (dbError.message?.includes("duplicate") || dbError.code === "23505") {
-          setSubmitError("One or more fields (Phone Number, NIC, Engine Number, or Chassis Number) already exist in our system. Please use unique values.");
-          await validateAll(customer);
+          setSubmitError("One or more fields (VAT Registration Number, BR Number, Engine Number, or Chassis Number) already exist in our system. Please use unique values.");
+          await validateAll(company);
         } else {
-          setSubmitError("Failed to save customer data. Please try again.");
+          setSubmitError("Failed to save company data. Please try again.");
         }
         setIsSubmitting(false);
         return; 
       } else {
-        console.log("Customer saved successfully!");
+        console.log("Company saved successfully!");
         setSubmitSuccess(true);
         
         setTimeout(() => {
-          setCustomer({
-            firstName: "",
-            lastName: "",
-            address: "",
-            phoneNumber: "",
-            nic: "",
+          setCompany({
+            companyName: "",
+            companyAddress: "",
+            vatRegistrationNumber: "",
+            brNumber: "",
+            companyContact: "",
+            companyEmail: "",
             vehicleModel: "",
             manuYear: "",
             engineNumber: "",
@@ -100,13 +101,13 @@ const CustomerRegistrationForm = () => {
             registrationFee: "",
             discount: "",
             advancePayment: "",
-            balanceDue: "",
-            paymentMethod: ""
+            paymentMethod: "",
+            balanceDue: ""
           });
           clearAllErrors();
           setSubmitSuccess(false);
         }, 1000);
-      
+        
         const closeButton = document.querySelector('[data-state="open"] button[aria-label="Close"]');
         if (closeButton) (closeButton as HTMLButtonElement).click();
         
@@ -121,72 +122,28 @@ const CustomerRegistrationForm = () => {
     }
   };
 
-  const handleInputChange = (field: keyof RegistrationData, value: string) => {
-    setCustomer(prev => ({ ...prev, [field]: value }))
+  const handleInputChange = (field: keyof CompanyRegistrationData, value: string) => {
+    setCompany(prev => ({ ...prev, [field]: value }))
     clearFieldError(field)
     setSubmitError(null)
   }
 
-  const handleBlur = async (field: keyof RegistrationData, value: string) => {
+  const handleBlur = (field: keyof CompanyRegistrationData, value: string) => {
     if (value) {
-      const fieldErrors = validateField(field, value);
-      if (fieldErrors.length > 0) {
-        clearFieldError(field);
-      } else {
-        if (field === 'phoneNumber' || field === 'nic' || field === 'engineNumber' || field === 'chasisNumber') {
-          const supabase = getSupabaseBrowserClient();
-          let table = '';
-          let column = '';
-          
-          if (field === 'phoneNumber') {
-            table = 'Customers';
-            column = 'phoneNumber';
-          } else if (field === 'nic') {
-            table = 'Customers';
-            column = 'nic_no';
-          } else if (field === 'engineNumber') {
-            table = 'Vehicles';
-            column = 'engineNumber';
-          } else if (field === 'chasisNumber') {
-            table = 'Vehicles';
-            column = 'chassisNumber';
-          }
-          
-          const { data } = await supabase
-            .from(table)
-            .select(column)
-            .eq(column, value);
-          
-          if (data && data.length > 0) {
-            let errorMessage = '';
-            if (field === 'phoneNumber') errorMessage = 'This phone number is already registered';
-            if (field === 'nic') errorMessage = 'This NIC number is already registered';
-            if (field === 'engineNumber') errorMessage = 'This engine number is already registered';
-            if (field === 'chasisNumber') errorMessage = 'This chassis number is already registered';
-            
-            // Show error without blocking
-            console.log(`Error: ${errorMessage}`);
-          } else {
-            clearFieldError(field);
-          }
-        } else {
-          clearFieldError(field);
-        }
-      }
+      validateField(field, value);
     }
   }
 
-  const getFieldError = (field: keyof RegistrationData): string | undefined => {
+  const getFieldError = (field: keyof CompanyRegistrationData): string | undefined => {
     return errors[field]?.[0];
   }
 
-  // Calculate total amount
   const calculateTotal = () => {
-    const basePrice = parseFloat(customer.basePrice) || 0;
-    const vat = parseFloat(customer.vat) || 0;
-    const registrationFee = parseFloat(customer.registrationFee) || 0;
-    const discount = parseFloat(customer.discount) || 0;
-    const advancePayment = parseFloat(customer.advancePayment) || 0;
+    const basePrice = parseFloat(company.basePrice) || 0;
+    const vat = parseFloat(company.vat) || 0;
+    const registrationFee = parseFloat(company.registrationFee) || 0;
+    const discount = parseFloat(company.discount) || 0;
+    const advancePayment = parseFloat(company.advancePayment) || 0;
     
     const subtotal = basePrice + vat + registrationFee;
     const totalAfterDiscount = subtotal - discount;
@@ -199,15 +156,13 @@ const CustomerRegistrationForm = () => {
     };
   };
 
-  // Update balance due when values change
   const updateBalanceDue = () => {
     const { balanceDue } = calculateTotal();
-    setCustomer(prev => ({ ...prev, balanceDue: balanceDue.toString() }));
+    setCompany(prev => ({ ...prev, balanceDue: balanceDue.toString() }));
   };
 
-  // Update balance due when relevant fields change
-  const handleNumberChange = (field: keyof RegistrationData, value: string) => {
-    setCustomer(prev => ({ ...prev, [field]: value }));
+  const handleNumberChange = (field: keyof CompanyRegistrationData, value: string) => {
+    setCompany(prev => ({ ...prev, [field]: value }));
     setTimeout(updateBalanceDue, 0);
   };
 
@@ -215,7 +170,7 @@ const CustomerRegistrationForm = () => {
     <div className="min-h-screen bg-gray-50 p-8">
       <div className="max-w-7xl mx-auto">
         <h1 className="text-5xl font-bold text-center mb-10 text-gray-800">
-          Customer Registration
+          Company Registration
         </h1>
         
         {/* Success Alert */}
@@ -223,7 +178,7 @@ const CustomerRegistrationForm = () => {
           <Alert className="mb-6 bg-green-50 border-green-500 text-green-800 text-base">
             <CheckCircle className="h-5 w-5" />
             <AlertDescription className="text-base">
-              Customer registered successfully! PDF has been downloaded.
+              Company registered successfully! PDF has been downloaded.
             </AlertDescription>
           </Alert>
         )}
@@ -239,115 +194,135 @@ const CustomerRegistrationForm = () => {
         )}
         
         <form>
-          {/* All your existing form fields remain exactly the same */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Left Column - Customer and Vehicle Details */}
+            {/* Left Column - Company and Vehicle Details */}
             <div className="space-y-8">
-              {/* Customer Details Card */}
+              {/* Company Details Card */}
               <Card className="border-2 border-blue-400">
                 <CardHeader className="pb-4">
                   <CardTitle className="text-2xl text-blue-800">
-                    Customer Details
+                    Company Details
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div id="field-firstName">
+                    <div id="field-companyName" className="md:col-span-2">
                       <Field>
-                        <FieldLabel htmlFor="first_name" className="text-base font-semibold mb-2 block">
-                          First Name <span className="text-red-500">*</span>
+                        <FieldLabel htmlFor="company_name" className="text-base font-semibold mb-2 block">
+                          Company Name <span className="text-red-500">*</span>
                         </FieldLabel>
                         <Input
-                          id="first_name"
-                          value={customer.firstName}
-                          onChange={(e) => handleInputChange('firstName', e.target.value)}
-                          onBlur={(e) => handleBlur('firstName', e.target.value)}
-                          placeholder="Enter first name"
-                          className={`text-base py-3 px-4 ${getFieldError('firstName') ? 'border-red-500' : ''}`}
+                          id="company_name"
+                          value={company.companyName}
+                          onChange={(e) => handleInputChange('companyName', e.target.value)}
+                          onBlur={(e) => handleBlur('companyName', e.target.value)}
+                          placeholder="Enter company name"
+                          className={`text-base py-3 px-4 ${getFieldError('companyName') ? 'border-red-500' : ''}`}
                           required
                         />
-                        {getFieldError('firstName') && (
-                          <p className="text-red-500 text-sm mt-2">{getFieldError('firstName')}</p>
+                        {getFieldError('companyName') && (
+                          <p className="text-red-500 text-sm mt-2">{getFieldError('companyName')}</p>
                         )}
                       </Field>
                     </div>
                     
-                    <div id="field-lastName">
+                    <div id="field-companyAddress" className="md:col-span-2">
                       <Field>
-                        <FieldLabel htmlFor="last_name" className="text-base font-semibold mb-2 block">
-                          Last Name <span className="text-red-500">*</span>
+                        <FieldLabel htmlFor="company_address" className="text-base font-semibold mb-2 block">
+                          Company Address <span className="text-red-500">*</span>
                         </FieldLabel>
                         <Input
-                          id="last_name"
-                          value={customer.lastName}
-                          onChange={(e) => handleInputChange('lastName', e.target.value)}
-                          onBlur={(e) => handleBlur('lastName', e.target.value)}
-                          placeholder="Enter last name"
-                          className={`text-base py-3 px-4 ${getFieldError('lastName') ? 'border-red-500' : ''}`}
+                          id="company_address"
+                          value={company.companyAddress}
+                          onChange={(e) => handleInputChange('companyAddress', e.target.value)}
+                          onBlur={(e) => handleBlur('companyAddress', e.target.value)}
+                          placeholder="Enter company address"
+                          className={`text-base py-3 px-4 ${getFieldError('companyAddress') ? 'border-red-500' : ''}`}
                           required
                         />
-                        {getFieldError('lastName') && (
-                          <p className="text-red-500 text-sm mt-2">{getFieldError('lastName')}</p>
+                        {getFieldError('companyAddress') && (
+                          <p className="text-red-500 text-sm mt-2">{getFieldError('companyAddress')}</p>
                         )}
                       </Field>
                     </div>
                     
-                    <div id="field-address" className="md:col-span-2">
+                    <div id="field-vatRegistrationNumber">
                       <Field>
-                        <FieldLabel htmlFor="address" className="text-base font-semibold mb-2 block">
-                          Address <span className="text-red-500">*</span>
+                        <FieldLabel htmlFor="vat_registration_number" className="text-base font-semibold mb-2 block">
+                          VAT Registration Number <span className="text-red-500">*</span>
                         </FieldLabel>
                         <Input
-                          id="address"
-                          value={customer.address}
-                          onChange={(e) => handleInputChange('address', e.target.value)}
-                          onBlur={(e) => handleBlur('address', e.target.value)}
-                          placeholder="Enter full address"
-                          className={`text-base py-3 px-4 ${getFieldError('address') ? 'border-red-500' : ''}`}
+                          id="vat_registration_number"
+                          value={company.vatRegistrationNumber}
+                          onChange={(e) => handleInputChange('vatRegistrationNumber', e.target.value)}
+                          onBlur={(e) => handleBlur('vatRegistrationNumber', e.target.value)}
+                          placeholder="Enter VAT registration number"
+                          className={`text-base py-3 px-4 ${getFieldError('vatRegistrationNumber') ? 'border-red-500' : ''}`}
                           required
                         />
-                        {getFieldError('address') && (
-                          <p className="text-red-500 text-sm mt-2">{getFieldError('address')}</p>
-                        )}
-                      </Field>
-                    </div>
-                    
-                    <div id="field-phoneNumber">
-                      <Field>
-                        <FieldLabel htmlFor="phone" className="text-base font-semibold mb-2 block">
-                          Phone Number <span className="text-red-500">*</span>
-                        </FieldLabel>
-                        <Input
-                          id="phone"
-                          value={customer.phoneNumber}
-                          onChange={(e) => handleInputChange('phoneNumber', e.target.value)}
-                          onBlur={(e) => handleBlur('phoneNumber', e.target.value)}
-                          placeholder="Enter phone number"
-                          className={`text-base py-3 px-4 ${getFieldError('phoneNumber') ? 'border-red-500' : ''}`}
-                          required
-                        />
-                        {getFieldError('phoneNumber') && (
-                          <p className="text-red-500 text-sm mt-2">{getFieldError('phoneNumber')}</p>
+                        {getFieldError('vatRegistrationNumber') && (
+                          <p className="text-red-500 text-sm mt-2">{getFieldError('vatRegistrationNumber')}</p>
                         )}
                       </Field>
                     </div>
 
-                    <div id="field-nic">
+                    <div id="field-brNumber">
                       <Field>
-                        <FieldLabel htmlFor="nic" className="text-base font-semibold mb-2 block">
-                          NIC Number <span className="text-red-500">*</span>
+                        <FieldLabel htmlFor="br_number" className="text-base font-semibold mb-2 block">
+                          BR Number <span className="text-red-500">*</span>
                         </FieldLabel>
                         <Input
-                          id="nic"
-                          value={customer.nic}
-                          onChange={(e) => handleInputChange('nic', e.target.value)}
-                          onBlur={(e) => handleBlur('nic', e.target.value)}
-                          placeholder="Enter NIC number"
-                          className={`text-base py-3 px-4 ${getFieldError('nic') ? 'border-red-500' : ''}`}
+                          id="br_number"
+                          value={company.brNumber}
+                          onChange={(e) => handleInputChange('brNumber', e.target.value)}
+                          onBlur={(e) => handleBlur('brNumber', e.target.value)}
+                          placeholder="Enter Business Registration Number"
+                          className={`text-base py-3 px-4 ${getFieldError('brNumber') ? 'border-red-500' : ''}`}
                           required
                         />
-                        {getFieldError('nic') && (
-                          <p className="text-red-500 text-sm mt-2">{getFieldError('nic')}</p>
+                        {getFieldError('brNumber') && (
+                          <p className="text-red-500 text-sm mt-2">{getFieldError('brNumber')}</p>
+                        )}
+                      </Field>
+                    </div>
+
+                    <div id="field-companyContact">
+                      <Field>
+                        <FieldLabel htmlFor="company_contact" className="text-base font-semibold mb-2 block">
+                          Company Contact <span className="text-red-500">*</span>
+                        </FieldLabel>
+                        <Input
+                          id="company_contact"
+                          value={company.companyContact}
+                          onChange={(e) => handleInputChange('companyContact', e.target.value)}
+                          onBlur={(e) => handleBlur('companyContact', e.target.value)}
+                          placeholder="Enter contact number"
+                          className={`text-base py-3 px-4 ${getFieldError('companyContact') ? 'border-red-500' : ''}`}
+                          required
+                        />
+                        {getFieldError('companyContact') && (
+                          <p className="text-red-500 text-sm mt-2">{getFieldError('companyContact')}</p>
+                        )}
+                      </Field>
+                    </div>
+
+                    <div id="field-companyEmail">
+                      <Field>
+                        <FieldLabel htmlFor="company_email" className="text-base font-semibold mb-2 block">
+                          Company Email <span className="text-red-500">*</span>
+                        </FieldLabel>
+                        <Input
+                          type="email"
+                          id="company_email"
+                          value={company.companyEmail}
+                          onChange={(e) => handleInputChange('companyEmail', e.target.value)}
+                          onBlur={(e) => handleBlur('companyEmail', e.target.value)}
+                          placeholder="Enter company email"
+                          className={`text-base py-3 px-4 ${getFieldError('companyEmail') ? 'border-red-500' : ''}`}
+                          required
+                        />
+                        {getFieldError('companyEmail') && (
+                          <p className="text-red-500 text-sm mt-2">{getFieldError('companyEmail')}</p>
                         )}
                       </Field>
                     </div>
@@ -371,7 +346,7 @@ const CustomerRegistrationForm = () => {
                         </FieldLabel>
                         <Input
                           id="vehicle_model"
-                          value={customer.vehicleModel}
+                          value={company.vehicleModel}
                           onChange={(e) => handleInputChange('vehicleModel', e.target.value)}
                           onBlur={(e) => handleBlur('vehicleModel', e.target.value)}
                           placeholder="e.g., Toyota Corolla"
@@ -392,7 +367,7 @@ const CustomerRegistrationForm = () => {
                         <Input 
                           type="date"
                           id="manu_year"
-                          value={customer.manuYear}
+                          value={company.manuYear}
                           onChange={(e) => handleInputChange('manuYear', e.target.value)}
                           onBlur={(e) => handleBlur('manuYear', e.target.value)}
                           className={`text-base py-3 px-4 ${getFieldError('manuYear') ? 'border-red-500' : ''}`}
@@ -411,7 +386,7 @@ const CustomerRegistrationForm = () => {
                         </FieldLabel>
                         <Input
                           id="color"
-                          value={customer.color}
+                          value={company.color}
                           onChange={(e) => handleInputChange('color', e.target.value)}
                           onBlur={(e) => handleBlur('color', e.target.value)}
                           placeholder="e.g., Red, Blue, Black"
@@ -431,7 +406,7 @@ const CustomerRegistrationForm = () => {
                         </FieldLabel>
                         <Input
                           id="engine_number"
-                          value={customer.engineNumber}
+                          value={company.engineNumber}
                           onChange={(e) => handleInputChange('engineNumber', e.target.value)}
                           onBlur={(e) => handleBlur('engineNumber', e.target.value)}
                           placeholder="Enter engine number"
@@ -451,7 +426,7 @@ const CustomerRegistrationForm = () => {
                         </FieldLabel>
                         <Input
                           id="chasis_number"
-                          value={customer.chasisNumber}
+                          value={company.chasisNumber}
                           onChange={(e) => handleInputChange('chasisNumber', e.target.value)}
                           onBlur={(e) => handleBlur('chasisNumber', e.target.value)}
                           placeholder="Enter chassis number"
@@ -487,7 +462,7 @@ const CustomerRegistrationForm = () => {
                         <Input
                           type="text"
                           id="paymentMethod"
-                          value={customer.paymentMethod}
+                          value={company.paymentMethod}
                           onChange={(e) => handleInputChange('paymentMethod', e.target.value)}
                           onBlur={(e) => handleBlur('paymentMethod', e.target.value)}
                           placeholder="Enter payment method"
@@ -507,7 +482,7 @@ const CustomerRegistrationForm = () => {
                         <Input
                           type="number"
                           id="base_price"
-                          value={customer.basePrice}
+                          value={company.basePrice}
                           onChange={(e) => handleNumberChange('basePrice', e.target.value)}
                           onBlur={(e) => handleBlur('basePrice', e.target.value)}
                           placeholder="Enter base price"
@@ -528,7 +503,7 @@ const CustomerRegistrationForm = () => {
                         <Input
                           type="number"
                           id="vat"
-                          value={customer.vat}
+                          value={company.vat}
                           onChange={(e) => handleNumberChange('vat', e.target.value)}
                           onBlur={(e) => handleBlur('vat', e.target.value)}
                           placeholder="Enter VAT amount"
@@ -549,7 +524,7 @@ const CustomerRegistrationForm = () => {
                         <Input
                           type="number"
                           id="registration_fee"
-                          value={customer.registrationFee}
+                          value={company.registrationFee}
                           onChange={(e) => handleNumberChange('registrationFee', e.target.value)}
                           onBlur={(e) => handleBlur('registrationFee', e.target.value)}
                           placeholder="Enter registration fee"
@@ -570,7 +545,7 @@ const CustomerRegistrationForm = () => {
                         <Input
                           type="number"
                           id="discount"
-                          value={customer.discount}
+                          value={company.discount}
                           onChange={(e) => handleNumberChange('discount', e.target.value)}
                           onBlur={(e) => handleBlur('discount', e.target.value)}
                           placeholder="Enter discount amount"
@@ -590,7 +565,7 @@ const CustomerRegistrationForm = () => {
                         <Input
                           type="number"
                           id="advance_payment"
-                          value={customer.advancePayment}
+                          value={company.advancePayment}
                           onChange={(e) => handleNumberChange('advancePayment', e.target.value)}
                           onBlur={(e) => handleBlur('advancePayment', e.target.value)}
                           placeholder="Enter advance payment amount"
@@ -605,7 +580,7 @@ const CustomerRegistrationForm = () => {
                   </div>
 
                   {/* Payment Summary */}
-                  {(customer.basePrice || customer.vat || customer.registrationFee || customer.discount || customer.advancePayment) && (
+                  {(company.basePrice || company.vat || company.registrationFee || company.discount || company.advancePayment) && (
                     <div className="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
                       <h3 className="text-lg font-semibold text-gray-800 mb-3">Payment Summary</h3>
                       <div className="space-y-2 text-sm">
@@ -613,21 +588,21 @@ const CustomerRegistrationForm = () => {
                           <span className="text-gray-600">Subtotal:</span>
                           <span className="font-medium">LKR {calculateTotal().subtotal.toFixed(2)}</span>
                         </div>
-                        {parseFloat(customer.discount) > 0 && (
+                        {parseFloat(company.discount) > 0 && (
                           <div className="flex justify-between text-green-600">
                             <span>Discount:</span>
-                            <span>- LKR {parseFloat(customer.discount).toFixed(2)}</span>
+                            <span>- LKR {parseFloat(company.discount).toFixed(2)}</span>
                           </div>
                         )}
                         <div className="flex justify-between font-semibold pt-2 border-t">
                           <span>Total Amount:</span>
                           <span>LKR {calculateTotal().totalAfterDiscount.toFixed(2)}</span>
                         </div>
-                        {parseFloat(customer.advancePayment) > 0 && (
+                        {parseFloat(company.advancePayment) > 0 && (
                           <>
                             <div className="flex justify-between text-blue-600">
                               <span>Advance Payment:</span>
-                              <span>- LKR {parseFloat(customer.advancePayment).toFixed(2)}</span>
+                              <span>- LKR {parseFloat(company.advancePayment).toFixed(2)}</span>
                             </div>
                             <div className="flex justify-between font-semibold pt-2 border-t">
                               <span>Balance Due:</span>
@@ -645,14 +620,14 @@ const CustomerRegistrationForm = () => {
             </div>
           </div>
           
-          {/* Submit Button - Replace with CustomerDialog */}
+          {/* Submit Button */}
           <div className="mt-8">
-            <CustomerDialog 
-              customer={customer}
-              onSubmit={handleFormSubmit}
-              isSubmitting={isSubmitting}
-              isValidating={isValidating}
-            />
+            <CompanyDialog 
+                company = {company}
+                onSubmit={handleFormSubmit}
+                isSubmitting={isSubmitting}
+                isValidating={isValidating}
+            />    
           </div>
         </form>
       </div>
@@ -660,4 +635,4 @@ const CustomerRegistrationForm = () => {
   )
 }
 
-export default CustomerRegistrationForm
+export default CompanyRegistrationForm
