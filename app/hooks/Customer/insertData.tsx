@@ -1,63 +1,62 @@
 // hooks/insertData.ts
-import { CompanyRegistrationData } from "../types/forms"
-import { getSupabaseBrowserClient } from "../lib/supabase/browser-client"
+import { RegistrationData } from "../../types/forms"
+import { getSupabaseBrowserClient } from "../../lib/supabase/browser-client"
 import { 
-    CompanyResponse,
+    CustomerResponse,
     VehicleResponse,
-    CompanyQuoatationResponse,
-    CompanyInvoiceResponse,
-    CompanyReceiptResponse
- } from "../types/companyResponse";
+    CustomerQuoatationResponse,
+    CustomerInvoiceResponse,
+    CustomerReceiptResponse
+ } from "../../types/customerResponse";
 
-const insertData = async (company: CompanyRegistrationData) => {
+const insertData = async (customer: RegistrationData) => {
     const supabase = getSupabaseBrowserClient();
 
     try {
         // Calculate totals
-        const basePrice = parseFloat(company.basePrice) || 0;
-        const vat = parseFloat(company.vat) || 0;
-        const registrationFee = parseFloat(company.registrationFee) || 0;
-        const discount = parseFloat(company.discount) || 0;
-        const advancePayment = parseFloat(company.advancePayment) || 0;
+        const basePrice = parseFloat(customer.basePrice) || 0;
+        const vat = parseFloat(customer.vat) || 0;
+        const registrationFee = parseFloat(customer.registrationFee) || 0;
+        const discount = parseFloat(customer.discount) || 0;
+        const advancePayment = parseFloat(customer.advancePayment) || 0;
         
         const total = basePrice + vat + registrationFee - discount;
         const balanceDue = total - advancePayment;
 
-        // Insert company
-        const { data: companyData, error: companyError } = await supabase
-            .from("Companies")
+        // Insert Customer
+        const { data: customerData, error: customerError } = await supabase
+            .from("Customers")
             .insert({
-                company_name: company.companyName,
-                BR_no: company.brNumber,
-                VAT_no: company.vatRegistrationNumber,
-                address: company.companyAddress,
-                company_contact: company.companyContact,
-                company_email: company.companyEmail
+                firstName: customer.firstName,
+                lastName: customer.lastName,
+                address: customer.address,
+                phoneNumber: customer.phoneNumber,
+                nic_no: customer.nic
             } as any)
             .select()
             .single();
 
-        if (companyError) {
-            console.error("Error inserting company:", companyError);
-            return companyError;
+        if (customerError) {
+            console.error("Error inserting customer:", customerError);
+            return customerError;
         }
 
-        if (!companyData) {
-            console.error("No company data returned");
-            return new Error("No company data returned");
+        if (!customerData) {
+            console.error("No customer data returned");
+            return new Error("No customer data returned");
         }
 
-        const typedcompanyData = companyData as unknown as CompanyResponse;
+        const typedCustomerData = customerData as unknown as CustomerResponse;
 
         // Insert Vehicle
         const { data: vehicleData, error: vehicleError } = await supabase
             .from("Vehicles")
             .insert({
-                vehicleModel: company.vehicleModel,
-                manuYear: company.manuYear,
-                engineNumber: company.engineNumber,
-                chassisNumber: company.chasisNumber,
-                color: company.color
+                vehicleModel: customer.vehicleModel,
+                manuYear: customer.manuYear,
+                engineNumber: customer.engineNumber,
+                chassisNumber: customer.chasisNumber,
+                color: customer.color
             } as any)
             .select()
             .single();
@@ -76,9 +75,9 @@ const insertData = async (company: CompanyRegistrationData) => {
 
         // Insert Quotation
         const { data: quotationData, error: quotationError } = await supabase
-            .from("Company_Quotation")
+            .from("Customer_Quotation")
             .insert({
-                company_id: typedcompanyData.id,
+                customer_id: typedCustomerData.id,
                 engine_no: typedVehicleData.engineNumber,
                 base_price: basePrice,
                 VAT: vat,
@@ -99,20 +98,20 @@ const insertData = async (company: CompanyRegistrationData) => {
             return new Error("No quotation data returned");
         }
 
-        const typedQuotationData = quotationData as unknown as CompanyQuoatationResponse;
+        const typedQuotationData = quotationData as unknown as CustomerQuoatationResponse;
 
         // Insert Invoice
         const { data: invoiceData, error: invoiceError } = await supabase
-            .from("Company_Invoice")
+            .from("Customer_Invoice")
             .insert({
-                company_id: typedcompanyData.id,
+                customer_id: typedCustomerData.id,
                 engine_no: typedVehicleData.engineNumber,
                 chassis_no: typedVehicleData.chassisNumber,
-                vehicle_model: company.vehicleModel,
-                vehicle_color: company.color,
+                vehicle_model: customer.vehicleModel,
+                vehicle_color: customer.color,
                 calc_price: total,
                 total_invoice: total,
-                payment_method: company.paymentMethod,
+                payment_method: customer.paymentMethod,
                 advance: advancePayment
             } as any)
             .select()
@@ -128,13 +127,13 @@ const insertData = async (company: CompanyRegistrationData) => {
             return new Error("No invoice data returned");
         }
 
-        const typedInvoiceData = invoiceData as unknown as CompanyInvoiceResponse;
+        const typedInvoiceData = invoiceData as unknown as CustomerInvoiceResponse;
 
         // Insert Receipt
         const { data: receiptData, error: receiptError } = await supabase
-            .from("Company_Receipt")
+            .from("Customer_Receipt")
             .insert({
-                company_id: typedcompanyData.id,
+                customer_id: typedCustomerData.id,
                 quotation_no: typedQuotationData.id,
                 invoice_no: typedInvoiceData.id,
                 amount_paid: advancePayment,
@@ -153,7 +152,7 @@ const insertData = async (company: CompanyRegistrationData) => {
             return new Error("No receipt data returned");
         }
 
-        const typedReceiptData = receiptData as unknown as CompanyReceiptResponse;
+        const typedReceiptData = receiptData as unknown as CustomerReceiptResponse;
 
         console.log("All data inserted successfully!");
         return null;
