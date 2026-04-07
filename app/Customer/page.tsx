@@ -10,6 +10,7 @@ import { Search, Eye, Download, Printer, ChevronLeft, ChevronRight, FileText, Re
 import generateInvoicePdf from "../hooks/Customer/customerInvoice";
 import generateReceiptPdf from "../hooks/Customer/customerReceipt";
 import generateQuotationPdf from "../hooks/Customer/customerQuotation";
+import { useAuth } from "../context/AuthContext";
 
 interface ReceiptData {
   id: number;
@@ -64,6 +65,7 @@ interface ReceiptData {
 }
 
 const CustomerDataPage = () => {
+  const { user } = useAuth();
   const [receipts, setReceipts] = useState<ReceiptData[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -205,6 +207,12 @@ const CustomerDataPage = () => {
   };
 
   const handleGenerateReceipt = async (receipt: ReceiptData) => {
+
+    if(user?.email !== process.env.NEXT_PUBLIC_ADMIN){
+      alert("Only admin can generate receipts.");
+      return;
+    }
+
     setGeneratingPdfFor({ id: receipt.id, type: 'receipt' });
     try {
       const receiptData = {
@@ -404,106 +412,195 @@ const CustomerDataPage = () => {
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-gray-200 bg-gray-50">
-                      <th className="text-left py-3 px-4 font-semibold text-gray-600">Receipt ID</th>
-                      <th className="text-left py-3 px-4 font-semibold text-gray-600">Invoice No</th>
-                      <th className="text-left py-3 px-4 font-semibold text-gray-600">Customer Name</th>
-                      <th className="text-left py-3 px-4 font-semibold text-gray-600">Phone Number</th>
-                      <th className="text-left py-3 px-4 font-semibold text-gray-600">NIC Number</th>
-                      <th className="text-left py-3 px-4 font-semibold text-gray-600">Vehicle Model</th>
-                      <th className="text-left py-3 px-4 font-semibold text-gray-600">Engine Number</th>
-                      <th className="text-left py-3 px-4 font-semibold text-gray-600">Chassis Number</th>
-                      <th className="text-left py-3 px-4 font-semibold text-gray-600">Color</th>
-                      <th className="text-left py-3 px-4 font-semibold text-gray-600">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {receipts.map((receipt) => {
-                      const vehicle = receipt.customer_invoice?.vehicles || receipt.customer_quotation?.vehicles;
-                      const isLoading = generatingPdfFor?.id === receipt.id;
-                      return (
-                        <tr key={receipt.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
-                          <td className="py-3 px-4 text-sm text-gray-600">{receipt.id}</td>
-                          <td className="py-3 px-4 text-sm text-gray-600">{receipt.invoice_no}</td>
-                          <td className="py-3 px-4 font-medium text-gray-800">
-                            {receipt.customers?.firstName} {receipt.customers?.lastName}
-                          </td>
-                          <td className="py-3 px-4 text-sm text-gray-600">{receipt.customers?.phoneNumber}</td>
-                          <td className="py-3 px-4 text-sm text-gray-600">{receipt.customers?.nic_no}</td>
-                          <td className="py-3 px-4 text-sm text-gray-600">
-                            {vehicle?.vehicleModel || receipt.customer_invoice?.vehicle_model || "-"}
-                          </td>
-                          <td className="py-3 px-4 text-sm font-mono text-gray-600">
-                            {vehicle?.engineNumber || receipt.customer_invoice?.engine_no || "-"}
-                          </td>
-                          <td className="py-3 px-4 text-sm font-mono text-gray-600">
-                            {vehicle?.chassisNumber || receipt.customer_invoice?.chassis_no || "-"}
-                          </td>
-                          <td className="py-3 px-4 text-sm text-gray-600">
-                            {vehicle?.color || receipt.customer_invoice?.vehicle_color || "-"}
-                          </td>
-                          <td className="py-3 px-4">
-                            <div className="flex gap-1">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="text-blue-600 hover:text-blue-800"
-                                onClick={() => alert(`Receipt #${receipt.id}\nCustomer: ${receipt.customers?.firstName} ${receipt.customers?.lastName}\nAmount Paid: LKR ${receipt.amount_paid}\nBalance Due: LKR ${receipt.balance_due}`)}
-                                title="View Details"
-                              >
-                                <Eye className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="text-purple-600 hover:text-purple-800"
-                                onClick={() => handleGenerateQuotation(receipt)}
-                                disabled={isLoading}
-                                title="Generate Quotation"
-                              >
-                                {isLoading && generatingPdfFor?.type === 'quotation' ? (
-                                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-600"></div>
-                                ) : (
-                                  <FileSpreadsheet className="h-4 w-4" />
-                                )}
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="text-orange-600 hover:text-orange-800"
-                                onClick={() => handleGenerateInvoice(receipt)}
-                                disabled={isLoading}
-                                title="Generate Invoice"
-                              >
-                                {isLoading && generatingPdfFor?.type === 'invoice' ? (
-                                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-orange-600"></div>
-                                ) : (
-                                  <FileText className="h-4 w-4" />
-                                )}
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="text-green-600 hover:text-green-800"
-                                onClick={() => handleGenerateReceipt(receipt)}
-                                disabled={isLoading}
-                                title="Generate Receipt"
-                              >
-                                {isLoading && generatingPdfFor?.type === 'receipt' ? (
-                                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-green-600"></div>
-                                ) : (
-                                  <Receipt className="h-4 w-4" />
-                                )}
-                              </Button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                {user && user?.email === process.env.NEXT_PUBLIC_ADMIN ? (
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-gray-200 bg-gray-50">
+                        <th className="text-left py-3 px-4 font-semibold text-gray-600">Receipt ID</th>
+                        <th className="text-left py-3 px-4 font-semibold text-gray-600">Invoice No</th>
+                        <th className="text-left py-3 px-4 font-semibold text-gray-600">Customer Name</th>
+                        <th className="text-left py-3 px-4 font-semibold text-gray-600">Phone Number</th>
+                        <th className="text-left py-3 px-4 font-semibold text-gray-600">NIC Number</th>
+                        <th className="text-left py-3 px-4 font-semibold text-gray-600">Vehicle Model</th>
+                        <th className="text-left py-3 px-4 font-semibold text-gray-600">Engine Number</th>
+                        <th className="text-left py-3 px-4 font-semibold text-gray-600">Chassis Number</th>
+                        <th className="text-left py-3 px-4 font-semibold text-gray-600">Color</th>
+                        <th className="text-left py-3 px-4 font-semibold text-gray-600">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {receipts.map((receipt) => {
+                        const vehicle = receipt.customer_invoice?.vehicles || receipt.customer_quotation?.vehicles;
+                        const isLoading = generatingPdfFor?.id === receipt.id;
+                        return (
+                          <tr key={receipt.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                            <td className="py-3 px-4 text-sm text-gray-600">{receipt.id}</td>
+                            <td className="py-3 px-4 text-sm text-gray-600">{receipt.invoice_no}</td>
+                            <td className="py-3 px-4 font-medium text-gray-800">
+                              {receipt.customers?.firstName} {receipt.customers?.lastName}
+                            </td>
+                            <td className="py-3 px-4 text-sm text-gray-600">{receipt.customers?.phoneNumber}</td>
+                            <td className="py-3 px-4 text-sm text-gray-600">{receipt.customers?.nic_no}</td>
+                            <td className="py-3 px-4 text-sm text-gray-600">
+                              {vehicle?.vehicleModel || receipt.customer_invoice?.vehicle_model || "-"}
+                            </td>
+                            <td className="py-3 px-4 text-sm font-mono text-gray-600">
+                              {vehicle?.engineNumber || receipt.customer_invoice?.engine_no || "-"}
+                            </td>
+                            <td className="py-3 px-4 text-sm font-mono text-gray-600">
+                              {vehicle?.chassisNumber || receipt.customer_invoice?.chassis_no || "-"}
+                            </td>
+                            <td className="py-3 px-4 text-sm text-gray-600">
+                              {vehicle?.color || receipt.customer_invoice?.vehicle_color || "-"}
+                            </td>
+                            <td className="py-3 px-4">
+                              <div className="flex gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-blue-600 hover:text-blue-800"
+                                  onClick={() => alert(`Receipt #${receipt.id}\nCustomer: ${receipt.customers?.firstName} ${receipt.customers?.lastName}\nAmount Paid: LKR ${receipt.amount_paid}\nBalance Due: LKR ${receipt.balance_due}`)}
+                                  title="View Details"
+                                >
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-purple-600 hover:text-purple-800"
+                                  onClick={() => handleGenerateQuotation(receipt)}
+                                  disabled={isLoading}
+                                  title="Generate Quotation"
+                                >
+                                  {isLoading && generatingPdfFor?.type === 'quotation' ? (
+                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-600"></div>
+                                  ) : (
+                                    <FileSpreadsheet className="h-4 w-4" />
+                                  )}
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-orange-600 hover:text-orange-800"
+                                  onClick={() => handleGenerateInvoice(receipt)}
+                                  disabled={isLoading}
+                                  title="Generate Invoice"
+                                >
+                                  {isLoading && generatingPdfFor?.type === 'invoice' ? (
+                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-orange-600"></div>
+                                  ) : (
+                                    <FileText className="h-4 w-4" />
+                                  )}
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-green-600 hover:text-green-800"
+                                  onClick={() => handleGenerateReceipt(receipt)}
+                                  disabled={isLoading}
+                                  title="Generate Receipt"
+                                >
+                                  {isLoading && generatingPdfFor?.type === 'receipt' ? (
+                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-green-600"></div>
+                                  ) : (
+                                    <Receipt className="h-4 w-4" />
+                                  )}
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                ) : (
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-gray-200 bg-gray-50">
+                        <th className="text-left py-3 px-4 font-semibold text-gray-600">Receipt ID</th>
+                        <th className="text-left py-3 px-4 font-semibold text-gray-600">Invoice No</th>
+                        <th className="text-left py-3 px-4 font-semibold text-gray-600">Customer Name</th>
+                        <th className="text-left py-3 px-4 font-semibold text-gray-600">Phone Number</th>
+                        <th className="text-left py-3 px-4 font-semibold text-gray-600">NIC Number</th>
+                        <th className="text-left py-3 px-4 font-semibold text-gray-600">Vehicle Model</th>
+                        <th className="text-left py-3 px-4 font-semibold text-gray-600">Engine Number</th>
+                        <th className="text-left py-3 px-4 font-semibold text-gray-600">Chassis Number</th>
+                        <th className="text-left py-3 px-4 font-semibold text-gray-600">Color</th>
+                        <th className="text-left py-3 px-4 font-semibold text-gray-600">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {receipts.map((receipt) => {
+                        const vehicle = receipt.customer_invoice?.vehicles || receipt.customer_quotation?.vehicles;
+                        const isLoading = generatingPdfFor?.id === receipt.id;
+                        return (
+                          <tr key={receipt.id} className="border-b border-gray-100 hover:bg-gray-50 transition-colors">
+                            <td className="py-3 px-4 text-sm text-gray-600">{receipt.id}</td>
+                            <td className="py-3 px-4 text-sm text-gray-600">{receipt.invoice_no}</td>
+                            <td className="py-3 px-4 font-medium text-gray-800">
+                              {receipt.customers?.firstName} {receipt.customers?.lastName}
+                            </td>
+                            <td className="py-3 px-4 text-sm text-gray-600">{receipt.customers?.phoneNumber}</td>
+                            <td className="py-3 px-4 text-sm text-gray-600">{receipt.customers?.nic_no}</td>
+                            <td className="py-3 px-4 text-sm text-gray-600">
+                              {vehicle?.vehicleModel || receipt.customer_invoice?.vehicle_model || "-"}
+                            </td>
+                            <td className="py-3 px-4 text-sm font-mono text-gray-600">
+                              {vehicle?.engineNumber || receipt.customer_invoice?.engine_no || "-"}
+                            </td>
+                            <td className="py-3 px-4 text-sm font-mono text-gray-600">
+                              {vehicle?.chassisNumber || receipt.customer_invoice?.chassis_no || "-"}
+                            </td>
+                            <td className="py-3 px-4 text-sm text-gray-600">
+                              {vehicle?.color || receipt.customer_invoice?.vehicle_color || "-"}
+                            </td>
+                            <td className="py-3 px-4">
+                              <div className="flex gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-blue-600 hover:text-blue-800"
+                                  onClick={() => alert(`Receipt #${receipt.id}\nCustomer: ${receipt.customers?.firstName} ${receipt.customers?.lastName}\nAmount Paid: LKR ${receipt.amount_paid}\nBalance Due: LKR ${receipt.balance_due}`)}
+                                  title="View Details"
+                                >
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-purple-600 hover:text-purple-800"
+                                  onClick={() => handleGenerateQuotation(receipt)}
+                                  disabled={isLoading}
+                                  title="Generate Quotation"
+                                >
+                                  {isLoading && generatingPdfFor?.type === 'quotation' ? (
+                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-600"></div>
+                                  ) : (
+                                    <FileSpreadsheet className="h-4 w-4" />
+                                  )}
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="text-orange-600 hover:text-orange-800"
+                                  onClick={() => handleGenerateInvoice(receipt)}
+                                  disabled={isLoading}
+                                  title="Generate Invoice"
+                                >
+                                  {isLoading && generatingPdfFor?.type === 'invoice' ? (
+                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-orange-600"></div>
+                                  ) : (
+                                    <FileText className="h-4 w-4" />
+                                  )}
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                )}
               </div>
             )}
 
